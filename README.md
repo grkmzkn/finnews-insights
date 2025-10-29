@@ -1,41 +1,75 @@
-# Financial News Insights - NER Project
+# Financial News Insights
 
-This project implements Named Entity Recognition (NER) for financial news using both SpaCy and BERT models.
+This project implements advanced Natural Language Processing (NLP) techniques for financial news analysis, including Named Entity Recognition (NER) and Sentiment Analysis.
 
 ## Project Overview
 
-The project aims to extract named entities from financial news articles, focusing on entities such as:
-- Companies
-- People (CEOs, executives, etc.)
-- Locations
-- Organizations
-- Dates
-- Financial metrics
+The project aims to provide comprehensive analysis of financial news through multiple NLP techniques:
+
+1. Named Entity Recognition (NER):
+   - Companies
+   - People (CEOs, executives, etc.)
+   - Locations
+   - Organizations
+   - Dates
+   - Financial metrics
+
+2. Sentiment Analysis:
+   - Multi-class sentiment classification (Positive, Negative, Neutral)
+   - Entity-specific sentiment analysis
+   - Advanced text preprocessing for financial context
+   - Multiple model comparisons and optimizations
 
 ## Project Structure
 
 ```
 finnews-insights/
-├── data/                    # Data directory
-│   ├── final_train_data.xlsx
-│   ├── final_valid_data.xlsx
-│   ├── final_test_data.xlsx
-│   └── label.json
-├── src/                    # Source code
-│   ├── model_spacy.ipynb   # SpaCy implementation
-│   └── model_bert.ipynb    # BERT implementation
-└── results/                # Model outputs and evaluation results
+├── data/                      # Data directory
+│   ├── sentiment_data.csv     # Dataset for sentiment analysis
+│   ├── ner_train_data.xlsx   # NER training data
+│   ├── ner_valid_data.xlsx   # NER validation data
+│   ├── ner_test_data.xlsx    # NER test data
+│   └── label.json            # Label configurations
+├── src/                      # Source code
+│   ├── sentiment_analysis.ipynb  # Sentiment analysis implementation
+│   ├── model_spacy.ipynb     # SpaCy NER implementation
+│   └── model_bert.ipynb      # BERT implementations
+└── results/                  # Model outputs and evaluation results
 ```
 
 ## Features
 
-- Data preprocessing and preparation
+### Sentiment Analysis
+- Multi-model comparison including:
+  - Logistic Regression
+  - Random Forest
+  - Support Vector Machine (SVM)
+  - Naive Bayes
+  - XGBoost
+  - LightGBM
+- Advanced text preprocessing pipeline:
+  - URL and email removal
+  - Stock symbol handling
+  - Financial-specific stop words
+  - Lemmatization
+- TF-IDF vectorization with optimized parameters
+- Model performance comparison and visualization
+- Hyperparameter optimization using GridSearchCV
+
+### Named Entity Recognition (NER)
 - Implementation of two different NER approaches:
   - SpaCy custom NER model
   - BERT-based NER model
+- Specialized entity recognition for financial context
 - Model training with customizable parameters
-- Model evaluation and performance metrics
-- Easy-to-use inference pipeline for new texts
+- Comprehensive evaluation metrics
+- Easy-to-use inference pipeline
+
+### Planned Integration
+- Entity-specific sentiment analysis
+- Historical trend analysis
+- Real-time news processing
+- Interactive visualization dashboard
 
 ## Requirements
 
