@@ -62,12 +62,9 @@ def analyze_with_gemini(text: str) -> dict:
         response = gemini_model.generate_content(prompt)
         text_response = response.text
         
-        # Markdown code block'u temizle
         if "```json" in text_response:
-            # İlk ```json ve son ``` arasındaki içeriği al
             json_content = text_response.split("```json")[1].split("```")[0]
         elif "```" in text_response:
-            # İlk ``` ve son ``` arasındaki içeriği al
             json_content = text_response.split("```")[1].split("```")[0]
         else:
             json_content = text_response
