@@ -2,6 +2,9 @@
 
 Advanced Natural Language Processing (NLP) project for financial news analysis, featuring Named Entity Recognition (NER) and Sentiment Analysis capabilities.
 
+<img width="716" height="601" alt="image" src="https://github.com/user-attachments/assets/f0e2157a-cb2d-4b83-8bbf-e78f923817dc" />
+
+
 ## Project Overview
 
 This project implements sophisticated NLP techniques to analyze financial news content through:
