@@ -21,7 +21,7 @@ import torch
 # Load models
 ###########################################################################
 # Load the TF-IDF vectorizer
-with open(os.path.join("models", "tfidf_vector.pkl"), "rb") as file:
+with open("./models/sentiment_model/tfidf_vector.pkl", "rb") as file:
     tfidf = pickle.load(file)
 
 # Load labels
@@ -32,7 +32,7 @@ label2id = label_dict  # mappings from label.json
 id2label = {v: k for k, v in label2id.items()}
 
 # Load Sentiment model
-sentiment_model = joblib.load("./models/sentiment_model.pkl")
+sentiment_model = joblib.load("./models/sentiment_model/sentiment_model.pkl")
 
 # Load SpaCy model
 spacy_model = spacy.load("./models/spacy_model")
@@ -164,8 +164,13 @@ def predict_entities_loaded(text, model, tokenizer, hardware='cpu'):
 ###########################################################################
 # Prediction
 ###########################################################################
-# Test on a sample sentence
 test_sentence = "Google CEO Sundar Pichai announced a new project."
+
+# Sentiment prediction
+predicted_sentiment = predict_sentiment(test_sentence)
+print(f"Predicted sentiment: {predicted_sentiment}")
+
+# SpaCy prediction
 doc = spacy_model(test_sentence)
 
 print("\nTesting loaded model:")
@@ -174,24 +179,11 @@ print("Found entities:")
 for ent in doc.ents:
     print(f"  {ent.text}: {ent.label_}")
 
-new_text = "The company's earnings report exceeded expectations."
-predicted_sentiment = predict_sentiment(new_text)
-
-print(f"\nNew text: {new_text}")
-print(f"Predicted sentiment: {predicted_sentiment}")
-
-# Test text
-test_text_loaded = "Apple CEO Tim Cook introduced the new iPhone model at a conference held in San Francisco."
-
-# Test with selected hardware
+# BERT prediction
 hardware_loaded = 'cpu'  # can be changed to 'gpu'
 print(f"\nTesting loaded model with {hardware_loaded.upper()}:")
+results_loaded = predict_entities_loaded(test_sentence, bert_model, bert_tokenizer, hardware_loaded)
 
-# Make predictions with the loaded model
-results_loaded = predict_entities_loaded(test_text_loaded, bert_model, bert_tokenizer, hardware_loaded)
-
-# Show results
-print("\nTest text:", test_text_loaded)
 print("\nFound entities:")
 for token, label in results_loaded:
     print(f"{token}: {label}")
