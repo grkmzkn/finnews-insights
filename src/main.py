@@ -16,6 +16,70 @@ from transformers import (
     DataCollatorForTokenClassification
 )
 import torch
+import google.generativeai as genai
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+###########################################################################
+# Configure Gemini
+###########################################################################
+GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
+genai.configure(api_key=GOOGLE_API_KEY)
+gemini_model = genai.GenerativeModel('gemini-2.5-flash')
+
+def analyze_with_gemini(text: str) -> dict:
+    """
+    Analyze text using Gemini model for sentiment and entity extraction.
+    
+    Args:
+        text (str): Input text to analyze
+        
+    Returns:
+        Dict containing sentiment and entities
+    """
+    prompt = f"""
+    Analyze the following financial news text and provide:
+    1. Sentiment (POSITIVE, NEGATIVE, or NEUTRAL)
+    2. Entities (DATE, PERSON, ORG, PERCENT, MONEY)
+    
+    Text: {text}
+    
+    Format the response as a JSON with the following structure:
+    {{
+        "sentiment": "POSITIVE/NEGATIVE/NEUTRAL",
+        "entities": [
+            {{
+                "text": "entity name",
+                "type": "entity type"
+            }}
+        ]
+    }}
+    """
+    
+    try:
+        response = gemini_model.generate_content(prompt)
+        text_response = response.text
+        
+        # Markdown code block'u temizle
+        if "```json" in text_response:
+            # İlk ```json ve son ``` arasındaki içeriği al
+            json_content = text_response.split("```json")[1].split("```")[0]
+        elif "```" in text_response:
+            # İlk ``` ve son ``` arasındaki içeriği al
+            json_content = text_response.split("```")[1].split("```")[0]
+        else:
+            json_content = text_response
+            
+        # Temizlenmiş JSON string'ini parse et
+        json_content = json_content.strip()
+        result = json.loads(json_content)
+        return result
+    except Exception as e:
+        print(f"Error in Gemini analysis: {str(e)}")
+        print(f"Raw response: {response.text}")  # Debug için ham yanıtı yazdır
+        return {"sentiment": "NEUTRAL", "entities": []}
 
 ###########################################################################
 # Load models
@@ -45,7 +109,16 @@ bert_model = AutoModelForTokenClassification.from_pretrained("./models/bert_mode
 ###########################################################################
 # Preprocess
 ###########################################################################
-def preprocess_text(text):
+def preprocess_text(text: str) -> str:
+    """
+    Preprocess the input text by applying various cleaning and normalization steps.
+    
+    Args:
+        text (str): Raw input text to preprocess
+        
+    Returns:
+        str: Cleaned and preprocessed text
+    """
     # Convert to lowercase
     text = text.lower()
     
@@ -164,26 +237,34 @@ def predict_entities_loaded(text, model, tokenizer, hardware='cpu'):
 ###########################################################################
 # Prediction
 ###########################################################################
-test_sentence = "Google CEO Sundar Pichai announced a new project."
+test_sentence = "Apple Inc. reported a 12% increase in revenue during the second quarter of 2024."
+print(test_sentence)
+print("**" * 50)
 
-# Sentiment prediction
+# Traditional ML Sentiment prediction
 predicted_sentiment = predict_sentiment(test_sentence)
+print(f"\n1. Traditional ML Sentiment Model")
 print(f"Predicted sentiment: {predicted_sentiment}")
 
 # SpaCy prediction
+print(f"\n2. SpaCy NER Model")
 doc = spacy_model(test_sentence)
-
-print("\nTesting loaded model:")
-print(f"Text: {test_sentence}")
 print("Found entities:")
 for ent in doc.ents:
     print(f"  {ent.text}: {ent.label_}")
 
 # BERT prediction
-hardware_loaded = 'cpu'  # can be changed to 'gpu'
-print(f"\nTesting loaded model with {hardware_loaded.upper()}:")
+print(f"\n3. BERT Model")
+hardware_loaded = 'cpu'
 results_loaded = predict_entities_loaded(test_sentence, bert_model, bert_tokenizer, hardware_loaded)
-
-print("\nFound entities:")
+print("Found entities:")
 for token, label in results_loaded:
-    print(f"{token}: {label}")
+    print(f"  {token}: {label}")
+
+# Gemini prediction
+print(f"\n4. Gemini Model")
+gemini_results = analyze_with_gemini(test_sentence)
+print("Sentiment:", gemini_results['sentiment'])
+print("Found entities:")
+for entity in gemini_results['entities']:
+    print(f"  {entity['text']}: {entity['type']}")
