@@ -234,7 +234,7 @@ def predict_entities_loaded(text, model, tokenizer, hardware='cpu'):
 ###########################################################################
 # Prediction
 ###########################################################################
-test_sentence = "Apple Inc. reported a 12% increase in revenue during the second quarter of 2024."
+test_sentence = "The collapse of two US companies could be a sign of wider problems in the financial system and \"alarm bells\" were ringing, the governor of the Bank of England has said."
 print(test_sentence)
 print("**" * 50)
 
