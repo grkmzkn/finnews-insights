@@ -147,17 +147,6 @@ text = "Apple CEO Tim Cook announced a new project that boosted investor confide
 # Will provide both NER and sentiment analysis results
 ```
 
-## Model Performance
-
-The current model achieves the following performance metrics on the validation set:
-- Precision: [Score]
-- Recall: [Score]
-- F1 Score: [Score]
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
