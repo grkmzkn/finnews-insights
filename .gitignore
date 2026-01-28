@@ -3,3 +3,5 @@ env
 data
 src/nltk_data
 models
+pycache
+__pycache__
