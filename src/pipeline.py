@@ -6,12 +6,99 @@ import os
 import json
 import pandas as pd
 from datetime import datetime
+import hashlib
+import time
+import requests
 
 # Import news fetcher
 from news_fetcher import NewsFetcher
 
 # Import helper functions
 import helpful_functions as hf
+
+# Cache file path
+CACHE_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'news_cache.json')
+
+
+def get_article_hash(article):
+    """Create unique hash for an article based on title and URL."""
+    unique_str = f"{article['title']}|{article['url']}"
+    return hashlib.md5(unique_str.encode('utf-8')).hexdigest()
+
+
+def load_cache():
+    """Load cache of analyzed articles."""
+    if os.path.exists(CACHE_FILE):
+        try:
+            with open(CACHE_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"⚠️ Could not load cache: {e}")
+    return {'analyzed_hashes': [], 'total_analyzed': 0}
+
+
+def save_cache(cache_data):
+    """Save cache of analyzed articles."""
+    try:
+        os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
+        with open(CACHE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(cache_data, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"⚠️ Could not save cache: {e}")
+
+
+def send_to_telegram(results, bot_token=None, chat_id=None):
+    """Send analysis results to Telegram channel/chat."""
+    if not bot_token or not chat_id:
+        print("⚠️ Telegram not configured (set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID)")
+        return
+    
+    if not results:
+        return
+    
+    try:
+        # Create message
+        message = f"🆕 *{len(results)} Yeni Haber Analizi*\n"
+        message += f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        
+        for i, result in enumerate(results, 1):
+            article = result['article']
+            analysis = result['analysis']
+            
+            # Sentiment emoji
+            sentiment = analysis.get('sentiment', 'neutral').lower()
+            emoji = "📈" if sentiment == 'positive' else "📉" if sentiment == 'negative' else "➖"
+            
+            message += f"{i}. {emoji} *{article['title']}*\n"
+            message += f"   📰 Kaynak: {article['source']}\n"
+            message += f"   💭 Sentiment: {sentiment.upper()}\n"
+            
+            # Entities
+            entities = analysis.get('spacy_entities', [])
+            if entities:
+                entity_texts = [e['text'] for e in entities[:3]]
+                message += f"   🏷 {', '.join(entity_texts)}\n"
+            
+            message += f"   🔗 [Haberi Oku]({article['url']})\n\n"
+        
+        # Send to Telegram
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        data = {
+            'chat_id': chat_id,
+            'text': message,
+            'parse_mode': 'Markdown',
+            'disable_web_page_preview': True
+        }
+        
+        response = requests.post(url, data=data, timeout=10)
+        
+        if response.status_code == 200:
+            print(f"✅ Telegram'a {len(results)} haber gönderildi")
+        else:
+            print(f"⚠️ Telegram gönderimi başarısız: {response.text}")
+            
+    except Exception as e:
+        print(f"❌ Telegram hatası: {e}")
 
 
 def analyze_news_with_models(articles, models, use_models=['sentiment', 'spacy']):
@@ -128,35 +215,23 @@ def analyze_news_with_models(articles, models, use_models=['sentiment', 'spacy']
     
     return results
 
-def run_pipeline(max_articles=10, use_models=['sentiment', 'spacy', 'bert', 'gemini']):
+def run_pipeline(models, max_articles=10, use_models=['sentiment', 'spacy']):
     """
     Run the complete analysis pipeline.
+    Fetches news and analyzes only new (not previously analyzed) articles.
     
     Args:
+        models: Dictionary containing loaded models
         max_articles: Maximum number of articles to fetch per source
         use_models: List of models to use ['sentiment', 'spacy', 'bert', 'gemini']
         
     Returns:
-        List of analysis results
+        List of analysis results for new articles
     """
     
-    # Step 0: Load models
-    print(f"🔧 STEP 0: LOADING MODELS")
     print(f"\n{'='*70}")
-    sentiment_model, spacy_model, bert_model, bert_tokenizer, tfidf, id2label = hf.load_models()
-    
-    # Pack models into dictionary
-    models = {
-        'sentiment_model': sentiment_model,
-        'spacy_model': spacy_model,
-        'bert_model': bert_model,
-        'bert_tokenizer': bert_tokenizer,
-        'tfidf': tfidf,
-        'id2label': id2label
-    }
-    
-    print("✅ Models loaded successfully")
-    print(f"\n{'='*70}")
+    print(f"🔍 CHECKING FOR NEWS - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"{'='*70}\n")
     
     # Step 1: Fetch news
     print(f"📰 STEP 1: FETCHING NEWS FROM RSS FEEDS")
@@ -171,22 +246,95 @@ def run_pipeline(max_articles=10, use_models=['sentiment', 'spacy', 'bert', 'gem
     
     print(f"\n✅ Fetched {len(articles)} articles from RSS feeds")
     
-    # Step 2: Analyze articles
-    print(f"🔬 STEP 2: ANALYZING WITH MODELS")
+    # Step 2: Load cache and filter new articles
+    print(f"\n🔎 STEP 2: CHECKING FOR NEW ARTICLES")
+    print(f"{'='*70}\n")
+    
+    cache = load_cache()
+    analyzed_hashes = set(cache.get('analyzed_hashes', []))
+    
+    new_articles = []
+    for article in articles:
+        article_hash = get_article_hash(article)
+        if article_hash not in analyzed_hashes:
+            new_articles.append(article)
+            analyzed_hashes.add(article_hash)
+    
+    if not new_articles:
+        print(f"ℹ️  No new articles found (all {len(articles)} already analyzed)")
+        print(f"\n{'='*70}")
+        print(f"✅ CHECK COMPLETE - No new articles to analyze")
+        print(f"{'='*70}\n")
+        return []
+    
+    print(f"🆕 Found {len(new_articles)} NEW article(s) out of {len(articles)} total")
+    
+    # Step 3: Analyze only new articles
+    print(f"\n🔬 STEP 3: ANALYZING NEW ARTICLES")
     print(f"{'='*70}")
     
-    results = analyze_news_with_models(articles, models, use_models=use_models)
+    results = analyze_news_with_models(new_articles, models, use_models=use_models)
+    
+    # Step 4: Update cache
+    cache_data = {
+        'analyzed_hashes': list(analyzed_hashes),
+        'last_check': datetime.now().isoformat(),
+        'total_analyzed': len(analyzed_hashes)
+    }
+    save_cache(cache_data)
+    
+    # Step 5: Save results
+    if results:
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        results_file = os.path.join(os.path.dirname(__file__), '..', 'data', 'results', f'analysis_{timestamp}.json')
+        os.makedirs(os.path.dirname(results_file), exist_ok=True)
+        
+        try:
+            with open(results_file, 'w', encoding='utf-8') as f:
+                json.dump(results, f, indent=2, ensure_ascii=False)
+            print(f"\n💾 Results saved to: {os.path.basename(results_file)}")
+        except Exception as e:
+            print(f"⚠️ Could not save results: {e}")
     
     print(f"\n{'='*70}")
-    print(f"✅ PIPELINE COMPLETE!")
+    print(f"✅ PIPELINE COMPLETE - {len(new_articles)} new article(s) analyzed")
     print(f"{'='*70}\n")
+    
+    # Send to Telegram if configured
+    bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+    chat_id = os.getenv('TELEGRAM_CHAT_ID')
+    if results and (bot_token and chat_id):
+        send_to_telegram(results, bot_token, chat_id)
     
     return results
 
 if __name__ == "__main__":
-    results = run_pipeline(
-        max_articles=5,
-        use_models=['sentiment', 'spacy', 'bert', 'gemini']  # Use all models
-    )
+    # Configuration
+    CHECK_INTERVAL_MINUTES = 5
+    MAX_ARTICLES = 1
+    USE_MODELS = ['sentiment', 'spacy', 'bert', 'gemini']
     
-    print(f"Total analyzed: {len(results)} articles")
+    # Load models once at the beginning
+    print(f"🔧 LOADING MODELS...")
+    print(f"{'='*70}\n")
+    
+    sentiment_model, spacy_model, bert_model, bert_tokenizer, tfidf, id2label = hf.load_models()
+    
+    models = {
+        'sentiment_model': sentiment_model,
+        'spacy_model': spacy_model,
+        'bert_model': bert_model,
+        'bert_tokenizer': bert_tokenizer,
+        'tfidf': tfidf,
+        'id2label': id2label
+    }
+    
+    print("✅ Models loaded successfully\n")
+    
+    try:
+        while True:
+            run_pipeline(models=models, max_articles=MAX_ARTICLES, use_models=USE_MODELS)
+            print(f"\n⏰ Next check in {CHECK_INTERVAL_MINUTES} minutes...")
+            time.sleep(CHECK_INTERVAL_MINUTES * 60)
+    except KeyboardInterrupt:
+        print("\n\n🛑 Monitoring stopped by user")
