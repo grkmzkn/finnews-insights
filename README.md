@@ -1,150 +1,191 @@
 # Financial News Insights
 
-Advanced Natural Language Processing (NLP) project for financial news analysis, featuring Named Entity Recognition (NER) and Sentiment Analysis capabilities.
+Automated financial news analysis system with real-time monitoring, multi-model NLP analysis, and Telegram notifications.
 
 <img width="716" height="601" alt="image" src="https://github.com/user-attachments/assets/f0e2157a-cb2d-4b83-8bbf-e78f923817dc" />
 
 
-## Project Overview
+## Overview
 
-This project implements sophisticated NLP techniques to analyze financial news content through:
+Continuous monitoring service that fetches financial news from RSS feeds, analyzes them using multiple ML models, and sends notifications to Telegram. Features smart caching to avoid duplicate analysis.
 
-1. Named Entity Recognition (NER):
-   - Implements both SpaCy and BERT-based models
-   - Detects and classifies entities such as:
-     - Organizations (ORG)
-     - People (PERSON)
-     - Dates (DATE)
-     - Monetary Values (MONEY)
-     - Percentages (PERCENT)
+**Key Features:**
+- 🔄 **Real-time News Monitoring**: Fetches from multiple financial news sources
+- 🤖 **Multi-Model Analysis**: BERT NER, SpaCy NER, Traditional ML Sentiment, Gemini AI (optional)
+- 📱 **Telegram Notifications**: Instant alerts for new financial news
+- 💾 **Smart Caching**: Analyzes only new articles, prevents duplicates
+- ☁️ **Cloud-Ready**: Easy deployment to Render, Railway, or Hugging Face Spaces
 
-2. Sentiment Analysis:
-   - Multi-class sentiment classification
+## Quick Start
+
+### Prerequisites
+- Python 3.10+
+- Telegram Bot Token ([get from @BotFather](https://t.me/BotFather))
+- Telegram Chat ID
+
+### Installation
+
+```bash
+# Clone repository
+git clone https://github.com/grkmzkn/finnews-insights.git
+cd finnews-insights
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Download NLTK data
+python -c "import nltk; nltk.download('stopwords'); nltk.download('wordnet')"
+
+# Set environment variables
+cp .env.example .env
+# Edit .env and add your Telegram credentials
+```
+
+### Configuration
+
+Create `.env` file:
+```bash
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+TELEGRAM_CHAT_ID=your_chat_id_here
+GEMINI_API_KEY=your_gemini_key_here  # Optional
+```
+
+### Run
+
+```bash
+# Start continuous monitoring
+cd src
+python pipeline.py
+```
+
+The service will check for new financial news every 30 minutes and send analysis to Telegram.
+
+## Analysis Pipeline
+
+The system analyzes each financial news article using:
+
+1. **Sentiment Analysis** (Traditional ML)
+   - TF-IDF + ML classifier
    - Categories: Positive, Negative, Neutral
-   - Includes advanced text preprocessing for financial context
+   - Financial-specific preprocessing
 
-## Project Structure
+2. **SpaCy NER**
+   - Lightweight custom-trained model
+   - Detects: Organizations, People, Dates, Money, Percentages
+   - Fast inference
+
+3. **BERT NER**
+   - Transformer-based model
+   - High accuracy for complex contexts
+   - Better entity boundary detection
+
+4. **Gemini AI** (Optional)
+   - Advanced LLM analysis
+   - Enhanced entity recognition
+   - Contextual sentiment understanding
+
+ResProject Structure
 
 ```
 finnews-insights/
-├── data/                        # Data files and configurations
-│   ├── sentiment_data.csv      # Sentiment analysis dataset
-│   ├── label.json             # Entity label configurations
-│   ├── train*.json            # Training data files
-│   ├── valid.json            # Validation dataset
-│   ├── test.json             # Test dataset
-│   └── results/              # Training results and metrics
-├── models/                     # Trained model files
-│   ├── bert_model/           # BERT NER model files
-│   │   ├── config.json
-│   │   ├── model.safetensors
-│   │   └── tokenizer files
-│   └── spacy_model/          # SpaCy NER model files
-│       ├── config.cfg
-│       └── model files
-├── src/                        # Source code
-│   ├── data_preparation.ipynb # Data preprocessing
-│   ├── main.py               # Main application script
-│   ├── model_bert.ipynb      # BERT model training
-│   ├── model_spacy.ipynb     # SpaCy model training
-│   └── sentiment_analysis.ipynb # Sentiment analysis
-└── results/                    # Output and evaluation results
-```
+├── src/
+│   ├── pipeline.py              # Main monitoring service
+│   ├── news_fetcher.py         # RSS feed crawler
+│   ├── helpful_functions.py    # Model loading & analysis
+│   └── main.py                 # Single analysis example
+├── models/
+│   ├── bert_model/             # BERT NER model
+│   ├── spacy_model/            # SpaCy NER model
+│   └── sentiment_model/        # Traditional ML model
+├── data/
+│   ├── label.json              # Entity label mapping
+│   ├── news_cache.json         # Analyzed articles cache
+│   └── results/                # Analysis results (JSON)
+└──How It Works
 
-## Features
+1. **News Fetching**: Monitors RSS feeds from Reuters, Bloomberg, CNBC, Yahoo Finance
+2. **Deduplication**: Checks cache to skip already-analyzed articles
+3. **Multi-Model Analysis**: Runs all enabled models on new articles
+4. **Result Storage**: Saves JSON results to `data/results/`
+5. **Telegram Notification**: Sends formatted analysis to your Telegram chat
+6. **Repeat**: Waits 30 minutes and starts again
 
-### Named Entity Recognition (NER)
-- Dual model implementation:
-  1. SpaCy Custom NER Model
-     - Lightweight and efficient
-     - Custom-trained for financial entities
-     - Fast inference capabilities
-  
-  2. BERT-based NER Model
-     - High accuracy for complex contexts
-     - Transformer architecture
-     - Better handling of ambiguous cases
+## Configuration Options
 
-### Sentiment Analysis
-- Multi-class sentiment classification
-- Advanced preprocessing pipeline:
-  - URL and email removal
-  - Stock symbol handling ($AAPL, $GOOG etc.)
-  - Financial-specific preprocessing
-  - Lemmatization and stop word removal
-- TF-IDF vectorization
-- ML model implementations
+Edit `src/pipeline.py` (at the bottom):
 
-## Requirements
-
-Main dependencies:
-- Python 3.10+
-- SpaCy 3.8.7
-- PyTorch 2.9.0
-- Transformers 4.57.1
-- Pandas 2.3.3
-- NumPy 2.2.6
-- scikit-learn 1.7.2
-- NLTK
-- tqdm
-
-Full requirements are available in `requirements.txt`.
-
-## Setup and Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/grkmzkn/finnews-insights.git
-cd finnews-insights
-```
-
-2. Create and activate a virtual environment:
-```bash
-python -m venv env
-# On Windows:
-env\Scripts\activate
-# On Unix/MacOS:
-source env/bin/activate
-```
-
-3. Install required packages:
-```bash
-pip install -r requirements.txt
-```
-
-## Usage
-
-### 1. Data Preparation
-- Run `data_preparation.ipynb` to process and prepare your data
-- Ensure your data follows the required format (see data files for examples)
-
-### 2. Model Training
-
-#### NER Models:
-1. SpaCy NER:
-   - Open `src/model_spacy.ipynb`
-   - Follow the notebook cells for training
-   - Model will be saved in `models/spacy_model/`
-
-2. BERT NER:
-   - Open `src/model_bert.ipynb`
-   - Execute training pipeline
-   - Model will be saved in `models/bert_model/`
-
-#### Sentiment Analysis:
-- Use `src/sentiment_analysis.ipynb` for training sentiment analysis model
-
-### 3. Inference
-Use `main.py` for making predictions with trained models:
-- NER detection using both SpaCy and BERT models
-- Sentiment analysis on text
-- Combined analysis capabilities
-
-Example usage:
 ```python
-# The main.py script provides integrated functionality
-text = "Apple CEO Tim Cook announced a new project that boosted investor confidence."
-# Will provide both NER and sentiment analysis results
+CHECK_INTERVAL_MINUTES = 30  # How often to check for news
+MAX_ARTICLES = 10            # Articles per source per check
+USE_MODELS = ['sentiment', 'spacy', 'bert', 'gemini']  # Models to use
+```
+
+**Model Options:**
+- `sentiment`: Traditional ML sentiment analysis (fast)
+- `spacy`: SpaCy NER (fast, lightweight)
+- `bert`: BERT NER (accurate, slower)
+- `gemini`: Gemini AI (requires API key, most accurate)
+
+## Cloud Deployment
+
+Deploy to run 24/7 for free:
+
+**Render.com** (Recommended):
+1. Create account at [render.com](https://render.com)
+2. New → Background Worker
+3. Connect GitHub repo
+4. Add environment variables
+5. Deploy
+
+**Railway.app**:
+```bash
+railway login
+railway init
+railway up
+```
+
+See deployment guides for Hugging Face Spaces, Google Cloud Run, and Heroku options.
+
+## Telegram Notification Format
+
+```
+1/3 - 📈 Apple announces record Q4 earnings
+
+📰 Kaynak: Reuters
+💭 Sentiment: POSITIVE
+
+🏷️ SpaCy Entities (3):
+  • Apple: ORG
+  • Q4: DATE
+  • $123 billion: MONEY
+Model Training (Optional)
+
+Pre-trained models are included. To retrain:
+
+- **Sentiment Model**: `src/sentiment_analysis.ipynb`
+- **BERT NER**: `src/model_bert.ipynb`
+- **SpaCy NER**: `src/model_spacy.ipynb`
+
+Training data in `data/train*.json`, `valid.json`, `test.json`.
+
+## Dependencies
+
+- Python 3.10+
+- PyTorch, Transformers (BERT)
+- SpaCy 3.8+
+- scikit-learn, NLTK (Sentiment)
+- google-generativeai (Gemini, optional)
+- requests (Telegram API)
+
+Full list: `requirements.txt`
+
+## License
+
+MIT License
+
+## Author
+
+vide both NER and sentiment analysis results
 ```
 
 ## License
