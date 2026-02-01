@@ -48,7 +48,7 @@ def save_cache(cache_data):
 
 
 def send_to_telegram(results, bot_token=None, chat_id=None):
-    """Send analysis results to Telegram channel/chat."""
+    """Send analysis results to Telegram channel/chat. Each article sent as separate message."""
     if not bot_token or not chat_id:
         print("⚠️ Telegram not configured (set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID)")
         return
@@ -56,12 +56,12 @@ def send_to_telegram(results, bot_token=None, chat_id=None):
     if not results:
         return
     
-    try:
-        # Create message
-        message = f"🆕 *{len(results)} Yeni Haber Analizi*\n"
-        message += f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        
-        for i, result in enumerate(results, 1):
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    success_count = 0
+    
+    # Send each article as separate message
+    for i, result in enumerate(results, 1):
+        try:
             article = result['article']
             analysis = result['analysis']
             
@@ -69,36 +69,70 @@ def send_to_telegram(results, bot_token=None, chat_id=None):
             sentiment = analysis.get('sentiment', 'neutral').lower()
             emoji = "📈" if sentiment == 'positive' else "📉" if sentiment == 'negative' else "➖"
             
-            message += f"{i}. {emoji} *{article['title']}*\n"
-            message += f"   📰 Kaynak: {article['source']}\n"
-            message += f"   💭 Sentiment: {sentiment.upper()}\n"
+            # Build message for this article
+            message = f"*{i}/{len(results)} - {emoji} {article['title']}*\n\n"
+            message += f"📰 *Kaynak:* {article['source']}\n"
+            message += f"💭 *Sentiment:* {sentiment.upper()}\n"
             
-            # Entities
-            entities = analysis.get('spacy_entities', [])
-            if entities:
-                entity_texts = [e['text'] for e in entities[:3]]
-                message += f"   🏷 {', '.join(entity_texts)}\n"
+            # SpaCy Entities
+            spacy_entities = analysis.get('spacy_entities', [])
+            if spacy_entities:
+                message += f"\n🏷️ *SpaCy Entities ({len(spacy_entities)}):*\n"
+                for ent in spacy_entities:
+                    message += f"  • {ent['text']}: `{ent['label']}`\n"
             
-            message += f"   🔗 [Haberi Oku]({article['url']})\n\n"
-        
-        # Send to Telegram
-        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-        data = {
-            'chat_id': chat_id,
-            'text': message,
-            'parse_mode': 'Markdown',
-            'disable_web_page_preview': True
-        }
-        
-        response = requests.post(url, data=data, timeout=10)
-        
-        if response.status_code == 200:
-            print(f"✅ Telegram'a {len(results)} haber gönderildi")
-        else:
-            print(f"⚠️ Telegram gönderimi başarısız: {response.text}")
+            # BERT Entities
+            bert_entities = analysis.get('bert_entities', [])
+            if bert_entities:
+                message += f"\n🤖 *BERT Entities ({len(bert_entities)}):*\n"
+                for ent in bert_entities:
+                    message += f"  • {ent['text']}: `{ent['label']}`\n"
             
-    except Exception as e:
-        print(f"❌ Telegram hatası: {e}")
+            # Gemini Analysis
+            gemini_sentiment = analysis.get('gemini_sentiment')
+            if gemini_sentiment and gemini_sentiment != 'N/A':
+                message += f"\n🧠 *Gemini Sentiment:* {gemini_sentiment}\n"
+            
+            gemini_entities = analysis.get('gemini_entities', [])
+            if gemini_entities:
+                message += f"🧠 *Gemini Entities ({len(gemini_entities)}):*\n"
+                for ent in gemini_entities:
+                    if isinstance(ent, dict):
+                        text = ent.get('text', ent.get('entity', 'N/A'))
+                        ent_type = ent.get('type', ent.get('label', 'N/A'))
+                        message += f"  • {text}: `{ent_type}`\n"
+                    else:
+                        message += f"  • {str(ent)}\n"
+            
+            message += f"\n🔗 [Haberi Oku]({article['url']})"
+            
+            # Check message length (Telegram limit: 4096 characters)
+            if len(message) > 4096:
+                message = message[:4090] + "...\n\n_[Mesaj kesildi]_"
+            
+            # Send message
+            data = {
+                'chat_id': chat_id,
+                'text': message,
+                'parse_mode': 'HTML',
+                'disable_web_page_preview': True
+            }
+            
+            response = requests.post(url, data=data, timeout=10)
+            
+            if response.status_code == 200:
+                success_count += 1
+                print(f"✅ [{i}/{len(results)}] Telegram'a gönderildi: {article['title'][:50]}...")
+            else:
+                print(f"⚠️ [{i}/{len(results)}] Telegram gönderimi başarısız: {response.text}")
+            
+            # Small delay between messages to avoid rate limiting
+            time.sleep(0.5)
+            
+        except Exception as e:
+            print(f"❌ [{i}/{len(results)}] Haber gönderimi hatası: {e}")
+    
+    print(f"\n✅ Toplam {success_count}/{len(results)} mesaj başarıyla gönderildi")
 
 
 def analyze_news_with_models(articles, models, use_models=['sentiment', 'spacy']):
