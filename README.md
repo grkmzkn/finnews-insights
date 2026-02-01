@@ -4,6 +4,7 @@ Automated financial news analysis system with real-time monitoring, multi-model 
 
 <img width="716" height="601" alt="image" src="https://github.com/user-attachments/assets/f0e2157a-cb2d-4b83-8bbf-e78f923817dc" />
 
+<img width="1433" height="457" alt="image" src="https://github.com/user-attachments/assets/8f2466bb-7714-4e58-accd-21fd83e23e6b" />
 
 ## Overview
 
